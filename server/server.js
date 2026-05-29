@@ -4,6 +4,32 @@ const cors = require("cors");
 const multer = require("multer");
 const http = require("http");
 const { Server } = require("socket.io");
+const sqlite3 = require("sqlite3").verbose();
+const db = new sqlite3.Database("./database.db");
+
+db.serialize(() => {
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      size INTEGER,
+      path TEXT,
+      date TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message TEXT,
+      type TEXT,
+      read INTEGER,
+      timestamp TEXT
+    )
+  `);
+
+});
 
 const app = express();
 
