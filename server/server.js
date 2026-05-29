@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
@@ -76,6 +77,17 @@ app.get("/api/notifications", (req, res) => {
   res.json(notifications);
 });
 
+const path = require("path");
+
+app.get("/api/download/:filename", (req, res) => {
+
+  const filePath = path.join(__dirname, "uploads", req.params.filename);
+
+  res.download(filePath);
+
+});
+
 server.listen(5000, () => {
   console.log("Server running on port 5000");
 });
+
