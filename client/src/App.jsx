@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
@@ -8,7 +7,7 @@ const socket = io("http://localhost:5000");
 
 function App() {
 
-  const [files, setFiles] = useState([]);
+  const [queueFiles, setQueueFiles] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [progress, setProgress] = useState(0);
@@ -51,7 +50,7 @@ function App() {
 
   const handleUpload = async () => {
 
-    if (files.length === 0) {
+    if (queueFiles.length === 0) {
 
       toast.error("Select files first");
 
@@ -61,18 +60,18 @@ function App() {
 
     const formData = new FormData();
 
-    for (let i = 0; i < files.length; i++) {
+    queueFiles.forEach((file) => {
 
-      formData.append("files", files[i]);
+      formData.append("files", file);
 
-    }
+    });
 
     setStatus("Uploading...");
 
-    if (files.length > 3) {
+    if (queueFiles.length > 3) {
 
       toast(
-        `Upload in progress — processing ${files.length} files in background`
+        `Upload in progress — processing ${queueFiles.length} files in background`
       );
 
     }
@@ -98,7 +97,7 @@ function App() {
 
       toast.success("Upload Complete");
 
-      setStatus("Upload complete");
+      setStatus("Completed");
 
       fetchFiles();
 
@@ -107,6 +106,8 @@ function App() {
       setTimeout(() => {
 
         setProgress(0);
+
+        setQueueFiles([]);
 
       }, 1500);
 
@@ -125,6 +126,8 @@ function App() {
     <div
       style={{
         padding: "40px",
+        maxWidth: "1100px",
+        margin: "0 auto",
         background: "#f4f7fb",
         minHeight: "100vh",
         fontFamily: "Arial"
@@ -133,186 +136,130 @@ function App() {
 
       <Toaster />
 
-      <h1
-        style={{
-          color: "#2563eb",
-          marginBottom: "10px"
-        }}
-      >
-        Smart Upload Dashboard
-      </h1>
+      {/* HEADER */}
 
-      <p
+      <div
         style={{
-          color: "#6b7280",
-          marginBottom: "30px"
+          marginBottom: "35px"
         }}
       >
-        Manage and track company documents in real time
-      </p>
+
+        <h1
+          style={{
+            color: "#2563eb",
+            marginBottom: "10px",
+            fontSize: "40px"
+          }}
+        >
+          Smart Upload Dashboard
+        </h1>
+
+        <p
+          style={{
+            color: "#6b7280",
+            fontSize: "17px"
+          }}
+        >
+          Manage and track company documents in real time
+        </p>
+
+      </div>
+
+      {/* UPLOAD BOX */}
 
       <div
         style={{
           background: "white",
-          padding: "30px",
-          borderRadius: "14px",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-          marginBottom: "30px"
+          padding: "50px 30px",
+          borderRadius: "18px",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+          marginBottom: "35px",
+          textAlign: "center",
+          border: "2px dashed #bfdbfe"
         }}
       >
 
-        <h2
+        <div
           style={{
-            marginBottom: "20px"
+            fontSize: "55px",
+            marginBottom: "10px"
           }}
         >
-          Upload PDF Files
+          📄
+        </div>
+
+        <h2
+          style={{
+            marginBottom: "10px",
+            fontSize: "32px"
+          }}
+        >
+          Drop files here or click to browse
         </h2>
 
-        <input
-          type="file"
-          multiple
-          accept="application/pdf"
-          onChange={(e) => setFiles(e.target.files)}
-        />
-
-        <br />
-        <br />
-
-        <button
-          onClick={handleUpload}
+        <p
           style={{
+            color: "#6b7280",
+            marginBottom: "30px"
+          }}
+        >
+          PDF files only • Max 20 MB per file
+        </p>
+
+        <label
+          style={{
+            display: "inline-block",
+            padding: "14px 24px",
             background: "#2563eb",
             color: "white",
-            border: "none",
-            padding: "12px 24px",
-            borderRadius: "8px",
+            borderRadius: "10px",
             cursor: "pointer",
+            fontWeight: "600",
             fontSize: "16px"
           }}
         >
-          Upload Files
-        </button>
 
-        {progress > 0 && (
+          Choose PDF Files
+
+          <input
+            type="file"
+            multiple
+            accept="application/pdf"
+            hidden
+            onChange={(e) => {
+
+              setQueueFiles(
+                Array.from(e.target.files)
+              );
+
+            }}
+          />
+
+        </label>
+
+        {queueFiles.length > 0 && (
 
           <div
             style={{
-              marginTop: "30px",
-              background: "#ffffff",
-              padding: "20px",
-              borderRadius: "12px",
-              border: "1px solid #dbeafe"
+              marginTop: "25px"
             }}
           >
 
-            <div
+            <button
+              onClick={handleUpload}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "20px"
+                background: "#16a34a",
+                color: "white",
+                border: "none",
+                padding: "14px 28px",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontSize: "16px",
+                fontWeight: "600"
               }}
             >
-
-              <h2>Upload Queue</h2>
-
-              <p
-                style={{
-                  color: "#6b7280"
-                }}
-              >
-                {files.length} files
-              </p>
-
-            </div>
-
-            {Array.from(files).map((file, index) => (
-
-              <div
-                key={index}
-                style={{
-                  marginBottom: "20px",
-                  border: "1px solid #bbf7d0",
-                  background: "#f0fdf4",
-                  padding: "18px",
-                  borderRadius: "12px"
-                }}
-              >
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: "12px"
-                  }}
-                >
-
-                  <div>
-
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontSize: "18px"
-                      }}
-                    >
-                      {file.name}
-                    </h3>
-
-                    <p
-                      style={{
-                        marginTop: "8px",
-                        color: "green",
-                        fontWeight: "500"
-                      }}
-                    >
-                      {status}
-                    </p>
-
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#6b7280"
-                    }}
-                  >
-                    {(file.size / 1024).toFixed(1)} KB
-                  </div>
-
-                </div>
-
-                <div
-                  style={{
-                    width: "100%",
-                    height: "12px",
-                    background: "#d1d5db",
-                    borderRadius: "999px",
-                    overflow: "hidden"
-                  }}
-                >
-
-                  <div
-                    style={{
-                      width: `${progress}%`,
-                      height: "100%",
-                      background: "#22c55e",
-                      transition: "0.3s"
-                    }}
-                  />
-
-                </div>
-
-                <p
-                  style={{
-                    marginTop: "10px",
-                    fontWeight: "600"
-                  }}
-                >
-                  {progress}% Completed
-                </p>
-
-              </div>
-
-            ))}
+              Upload Files
+            </button>
 
           </div>
 
@@ -320,76 +267,228 @@ function App() {
 
       </div>
 
-      <div
-        style={{
-          background: "#2563eb",
-          color: "white",
-          padding: "12px 20px",
-          borderRadius: "30px",
-          display: "inline-block",
-          marginBottom: "20px",
-          fontWeight: "600"
-        }}
-      >
-        Notifications (
-        {
-          notifications.filter(
-            note => !note.read
-          ).length
-        }
-        )
-      </div>
+      {/* UPLOAD QUEUE */}
 
-      <div
-        style={{
-          marginBottom: "40px"
-        }}
-      >
+      {queueFiles.length > 0 && (
 
-        {
-          notifications.length === 0 ? (
+        <div
+          style={{
+            marginBottom: "40px"
+          }}
+        >
 
-            <p>No notifications yet</p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "20px"
+            }}
+          >
 
-          ) : (
+            <h2>Upload Queue</h2>
 
-            notifications.map((note) => (
+            <p
+              style={{
+                color: "#6b7280"
+              }}
+            >
+              {queueFiles.length} files
+            </p>
+
+          </div>
+
+          {queueFiles.map((file, index) => (
+
+            <div
+              key={index}
+              style={{
+                background: "white",
+                borderRadius: "14px",
+                padding: "20px",
+                marginBottom: "18px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.06)"
+              }}
+            >
 
               <div
-                key={note.id}
                 style={{
-                  background: "white",
-                  padding: "15px",
-                  borderRadius: "10px",
-                  marginBottom: "10px",
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.08)"
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "15px"
                 }}
               >
 
-                <p
+                <div>
+
+                  <h3
+                    style={{
+                      margin: 0
+                    }}
+                  >
+                    {file.name}
+                  </h3>
+
+                  <p
+                    style={{
+                      color: "#16a34a",
+                      marginTop: "8px",
+                      fontWeight: "500"
+                    }}
+                  >
+                    {status || "Pending"}
+                  </p>
+
+                </div>
+
+                <div
                   style={{
-                    marginBottom: "8px"
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "15px"
                   }}
                 >
-                  {note.message}
-                </p>
 
-                <small>
-                  {
-                    new Date(
-                      note.timestamp
-                    ).toLocaleString()
-                  }
-                </small>
+                  <span
+                    style={{
+                      color: "#6b7280"
+                    }}
+                  >
+                    {(file.size / 1024).toFixed(1)} KB
+                  </span>
+
+                  <button
+                    onClick={() => {
+
+                      const updated =
+                        queueFiles.filter(
+                          (_, i) => i !== index
+                        );
+
+                      setQueueFiles(updated);
+
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "red",
+                      cursor: "pointer",
+                      fontSize: "20px"
+                    }}
+                  >
+                    ✕
+                  </button>
+
+                </div>
 
               </div>
 
-            ))
+              <div
+                style={{
+                  width: "100%",
+                  height: "12px",
+                  background: "#e5e7eb",
+                  borderRadius: "999px",
+                  overflow: "hidden"
+                }}
+              >
 
+                <div
+                  style={{
+                    width: `${progress}%`,
+                    height: "100%",
+                    background: "#22c55e",
+                    transition: "0.3s"
+                  }}
+                />
+
+              </div>
+
+              <p
+                style={{
+                  marginTop: "10px",
+                  fontWeight: "600"
+                }}
+              >
+                {progress}% Completed
+              </p>
+
+            </div>
+
+          ))}
+
+        </div>
+
+      )}
+
+      {/* NOTIFICATIONS */}
+
+      <div
+        style={{
+          marginBottom: "35px"
+        }}
+      >
+
+        <div
+          style={{
+            background: "#2563eb",
+            color: "white",
+            padding: "12px 20px",
+            borderRadius: "30px",
+            display: "inline-block",
+            marginBottom: "20px",
+            fontWeight: "600"
+          }}
+        >
+          Notifications (
+          {
+            notifications.filter(
+              note => !note.read
+            ).length
+          }
           )
-        }
+        </div>
+
+        {notifications.map((note) => (
+
+          <div
+            key={note.id}
+            style={{
+              background: "white",
+              padding: "15px",
+              borderRadius: "12px",
+              marginBottom: "12px",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.06)"
+            }}
+          >
+
+            <p
+              style={{
+                marginBottom: "8px"
+              }}
+            >
+              {note.message}
+            </p>
+
+            <small
+              style={{
+                color: "#6b7280"
+              }}
+            >
+              {
+                new Date(
+                  note.timestamp
+                ).toLocaleString()
+              }
+            </small>
+
+          </div>
+
+        ))}
 
       </div>
+
+      {/* DOCUMENT TABLE */}
 
       <h2
         style={{
@@ -404,9 +503,10 @@ function App() {
           width: "100%",
           background: "white",
           borderCollapse: "collapse",
+          borderRadius: "12px",
+          overflow: "hidden",
           boxShadow: "0 2px 10px rgba(0,0,0,0.08)"
         }}
-        border="1"
       >
 
         <thead
@@ -418,20 +518,20 @@ function App() {
 
           <tr>
 
-            <th style={{ padding: "15px" }}>
+            <th style={{ padding: "18px" }}>
               Name
             </th>
 
-            <th style={{ padding: "15px" }}>
+            <th style={{ padding: "18px" }}>
               Size
             </th>
 
-            <th style={{ padding: "15px" }}>
+            <th style={{ padding: "18px" }}>
               Date
             </th>
 
-            <th style={{ padding: "15px" }}>
-              Download
+            <th style={{ padding: "18px" }}>
+              Actions
             </th>
 
           </tr>
@@ -440,42 +540,78 @@ function App() {
 
         <tbody>
 
-          {
-            uploadedFiles.map((file) => (
+          {uploadedFiles.map((file) => (
 
-              <tr key={file.id}>
+            <tr
+              key={file.id}
+              style={{
+                borderBottom: "1px solid #e5e7eb"
+              }}
+            >
 
-                <td style={{ padding: "15px" }}>
-                  {file.name}
-                </td>
+              <td style={{ padding: "18px" }}>
+                {file.name}
+              </td>
 
-                <td style={{ padding: "15px" }}>
-                  {(file.size / 1024).toFixed(2)} KB
-                </td>
+              <td style={{ padding: "18px" }}>
+                {(file.size / 1024).toFixed(2)} KB
+              </td>
 
-                <td style={{ padding: "15px" }}>
-                  {
-                    new Date(
-                      file.date
-                    ).toLocaleString()
-                  }
-                </td>
+              <td style={{ padding: "18px" }}>
+                {
+                  new Date(
+                    file.date
+                  ).toLocaleString()
+                }
+              </td>
 
-                <td style={{ padding: "15px" }}>
+              <td style={{ padding: "18px" }}>
 
-                  <a
-                    href={`http://localhost:5000/api/download/${file.path.split("\\").pop()}`}
-                    target="_blank"
-                  >
-                    Download
-                  </a>
+                <a
+                  href={`http://localhost:5000/api/download/${file.path.split("\\").pop()}`}
+                  target="_blank"
+                  style={{
+                    textDecoration: "none",
+                    color: "#2563eb",
+                    fontWeight: "600"
+                  }}
+                >
+                  Download
+                </a>
 
-                </td>
+                <button
+                  onClick={async () => {
 
-              </tr>
+                    await axios.delete(
+                      `http://localhost:5000/api/files/${file.id}`
+                    );
 
-            ))
-          }
+                    toast.success(
+                      "File deleted"
+                    );
+
+                    fetchFiles();
+
+                  }}
+                  style={{
+                    marginLeft: "14px",
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontWeight: "600"
+                  }}
+                >
+                  Delete
+                </button>
+
+              </td>
+
+            </tr>
+
+          ))}
 
         </tbody>
 

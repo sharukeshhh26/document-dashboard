@@ -1,10 +1,29 @@
-
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const http = require("http");
-const { Server } = require("socket.io");
+const path = require("path");
+const fs = require("fs");
 const sqlite3 = require("sqlite3").verbose();
+const { Server } = require("socket.io");
+
+const app = express();
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
+
+app.use(cors());
+app.use(express.json());
+
+app.use("/uploads", express.static("uploads"));
+
+/* ---------------- DATABASE ---------------- */
+
 const db = new sqlite3.Database("./database.db");
 
 db.serialize(() => {
@@ -31,89 +50,321 @@ db.serialize(() => {
 
 });
 
-const app = express();
-
-const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: "*"
-  }
-});
-
-app.use(cors());
-app.use(express.json());
-
-app.use("/uploads", express.static("uploads"));
-
-const uploadedFiles = [];
-const notifications = [];
+/* ---------------- MULTER STORAGE ---------------- */
 
 const storage = multer.diskStorage({
-  destination: "uploads/",
+
+  destination: (req, file, cb) => {
+
+    cb(null, "uploads/");
+
+  },
+
   filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
+
+    cb(
+      null,
+      Date.now() + "-" + file.originalname
+    );
+
   }
+
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage
+});
 
-app.post("/api/upload", upload.array("files"), (req, res) => {
+/* ---------------- UPLOAD API ---------------- */
 
-  const files = req.files;
+app.post(
+  "/api/upload",
+  upload.array("files"),
+  (req, res) => {
 
-  files.forEach(file => {
+    const files = req.files;
 
-    uploadedFiles.push({
-      id: Date.now() + Math.random(),
-      name: file.originalname,
-      size: file.size,
-      path: file.path,
-      date: new Date()
+    files.forEach((file) => {
+
+      db.run(
+        `
+        INSERT INTO files
+        (name, size, path, date)
+        VALUES (?, ?, ?, ?)
+        `,
+        [
+          file.originalname,
+          file.size,
+          file.path,
+          new Date().toISOString()
+        ]
+      );
+
     });
 
-  });
+    if (files.length > 3) {
 
-  if(files.length > 3){
+      const message =
+        `${files.length} files uploaded successfully`;
 
-    const notification = {
-      id: Date.now(),
-      message: `${files.length} files uploaded successfully`,
-      read: false,
-      timestamp: new Date()
-    };
+      db.run(
+        `
+        INSERT INTO notifications
+        (message, type, read, timestamp)
+        VALUES (?, ?, ?, ?)
+        `,
+        [
+          message,
+          "success",
+          0,
+          new Date().toISOString()
+        ],
+        function () {
 
-    notifications.unshift(notification);
+          const notification = {
+            id: this.lastID,
+            message,
+            type: "success",
+            read: 0,
+            timestamp: new Date().toISOString()
+          };
 
-    io.emit("new-notification", notification);
+          io.emit(
+            "new-notification",
+            notification
+          );
+
+        }
+      );
+
+    }
+
+    res.json({
+      success: true
+    });
 
   }
+);
 
-  res.json({
-    success: true
-  });
-
-});
+/* ---------------- GET FILES ---------------- */
 
 app.get("/api/files", (req, res) => {
-  res.json(uploadedFiles);
+
+  db.all(
+    `
+    SELECT * FROM files
+    ORDER BY id DESC
+    `,
+    [],
+    (err, rows) => {
+
+      if (err) {
+
+        return res.status(500).json({
+          error: err.message
+        });
+
+      }
+
+      res.json(rows);
+
+    }
+  );
+
 });
 
-app.get("/api/notifications", (req, res) => {
-  res.json(notifications);
+/* ---------------- GET NOTIFICATIONS ---------------- */
+
+app.get(
+  "/api/notifications",
+  (req, res) => {
+
+    db.all(
+      `
+      SELECT * FROM notifications
+      ORDER BY id DESC
+      `,
+      [],
+      (err, rows) => {
+
+        if (err) {
+
+          return res.status(500).json({
+            error: err.message
+          });
+
+        }
+
+        res.json(rows);
+
+      }
+    );
+
+  }
+);
+
+/* ---------------- MARK SINGLE READ ---------------- */
+
+app.put(
+  "/api/notifications/:id",
+  (req, res) => {
+
+    db.run(
+      `
+      UPDATE notifications
+      SET read = 1
+      WHERE id = ?
+      `,
+      [req.params.id],
+      function (err) {
+
+        if (err) {
+
+          return res.status(500).json({
+            error: err.message
+          });
+
+        }
+
+        res.json({
+          success: true
+        });
+
+      }
+    );
+
+  }
+);
+
+/* ---------------- MARK ALL READ ---------------- */
+
+app.put(
+  "/api/notifications",
+  (req, res) => {
+
+    db.run(
+      `
+      UPDATE notifications
+      SET read = 1
+      `,
+      function (err) {
+
+        if (err) {
+
+          return res.status(500).json({
+            error: err.message
+          });
+
+        }
+
+        res.json({
+          success: true
+        });
+
+      }
+    );
+
+  }
+);
+
+/* ---------------- DOWNLOAD FILE ---------------- */
+
+app.get(
+  "/api/download/:filename",
+  (req, res) => {
+
+    const filePath = path.join(
+      __dirname,
+      "uploads",
+      req.params.filename
+    );
+
+    res.download(filePath);
+
+  }
+);
+
+/* ---------------- DELETE FILE ---------------- */
+
+app.delete(
+  "/api/files/:id",
+  (req, res) => {
+
+    const id = req.params.id;
+
+    db.get(
+      `
+      SELECT * FROM files
+      WHERE id = ?
+      `,
+      [id],
+      (err, row) => {
+
+        if (err) {
+
+          return res.status(500).json({
+            error: err.message
+          });
+
+        }
+
+        if (!row) {
+
+          return res.status(404).json({
+            error: "File not found"
+          });
+
+        }
+
+        if (fs.existsSync(row.path)) {
+
+          fs.unlinkSync(row.path);
+
+        }
+
+        db.run(
+          `
+          DELETE FROM files
+          WHERE id = ?
+          `,
+          [id],
+          function (err) {
+
+            if (err) {
+
+              return res.status(500).json({
+                error: err.message
+              });
+
+            }
+
+            res.json({
+              success: true
+            });
+
+          }
+        );
+
+      }
+    );
+
+  }
+);
+
+/* ---------------- SOCKET CONNECTION ---------------- */
+
+io.on("connection", (socket) => {
+
+  console.log("User connected");
+
 });
 
-const path = require("path");
-
-app.get("/api/download/:filename", (req, res) => {
-
-  const filePath = path.join(__dirname, "uploads", req.params.filename);
-
-  res.download(filePath);
-
-});
+/* ---------------- START SERVER ---------------- */
 
 server.listen(5000, () => {
-  console.log("Server running on port 5000");
-});
 
+  console.log(
+    "Server running on port 5000"
+  );
+
+});
